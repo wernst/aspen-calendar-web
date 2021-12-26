@@ -154,7 +154,6 @@ function AddEventForm() {
     recurrenceEndDate: Date | undefined
   ) {
     if (isRecurring) {
-      console.log(recurrenceEndDate);
       return recurrenceEndDate ?? new Date(Date.UTC(2999, 12, 31));
     }
     return addMinutes(startDate, duration);
