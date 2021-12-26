@@ -1,0 +1,11 @@
+{
+  "pathToDeploy": "./build",
+  "name": "calendar",
+  "type": "app",
+  "title": "calendar",
+  "description": "A simple calendar to schedule events and generate reminders",
+  "resourceResolution": "spa",
+  "agentDependencies": {
+    "@will/calendar-agent": "required"
+  }
+}
