@@ -12,6 +12,7 @@ import {
   format,
   isAfter,
   addMinutes,
+  addMonths,
 } from "date-fns";
 import { useEffect, useState } from "react";
 import { RRule, RRuleSet, rrulestr } from "rrule";
@@ -293,7 +294,13 @@ function AddEventForm() {
   );
 }
 
-function MonthView({ date }: { date: Date }) {
+function MonthView({
+  date,
+  onMonthChange,
+}: {
+  date: Date;
+  onMonthChange: (difference: number) => void;
+}) {
   const monthStart = startOfMonth(date);
   const start = startOfWeek(monthStart);
   const dateMatrix: Date[][] = [];
@@ -306,7 +313,7 @@ function MonthView({ date }: { date: Date }) {
   }
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-  const refreshEvents = async () => {
+  const refreshEvents = async (date: Date) => {
     const resp = await agent.getView("eventsForMonth", {
       year: date.getFullYear().toString(),
       month: date.getMonth().toString(),
@@ -315,13 +322,22 @@ function MonthView({ date }: { date: Date }) {
     setEvents(resp);
   };
   useEffect(() => {
-    refreshEvents();
-  }, []);
-  return <CalendarCellMatrix dateMatrix={dateMatrix} events={events} />;
+    refreshEvents(date);
+  }, [date]);
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "center", gap: "5px" }}>
+        <button onClick={() => onMonthChange(-1)}>&lt;</button>
+        <div style={{ textAlign: "center" }}>{MONTHS[getMonth(date)]}</div>
+        <button onClick={() => onMonthChange(1)}>&gt;</button>
+      </div>
+      <CalendarCellMatrix dateMatrix={dateMatrix} events={events} />
+    </>
+  );
 }
 
 export default function Calendar() {
-  const date = new Date();
+  const [date, setDate] = useState(new Date());
   const [view, setView] = useState<string>("MONTH");
   return (
     <>
@@ -330,9 +346,13 @@ export default function Calendar() {
         <option value={"WEEK"}>Week</option>
         <option value={"DAY"}>Day</option>
       </select>
-      <div style={{ textAlign: "center" }}>{MONTHS[getMonth(date)]}</div>
       {view === "MONTH" ? (
-        <MonthView date={date} />
+        <MonthView
+          date={date}
+          onMonthChange={(difference) =>
+            setDate((d) => addMonths(d, difference))
+          }
+        />
       ) : view === "Week" ? (
         <></>
       ) : view === "DAY" ? (
