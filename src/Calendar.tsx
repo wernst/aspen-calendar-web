@@ -11,14 +11,17 @@ import {
   isEqual,
   format,
   isAfter,
+  addMinutes,
 } from "date-fns";
 import { useEffect, useState } from "react";
+import { RRule, RRuleSet, rrulestr } from "rrule";
 
 interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  dateUtc: string;
+  startDateUtc: string;
+  endDateUtc: string;
   duration: number; // minutes
   // allDay: boolean,
   // participants: User[]
@@ -61,7 +64,7 @@ function CalendarCell({
       <div>
         {events
           .sort((a, b) =>
-            isAfter(new Date(a.dateUtc), new Date(b.dateUtc)) ? 1 : -1
+            isAfter(new Date(a.startDateUtc), new Date(b.startDateUtc)) ? 1 : -1
           )
           .map((event, i) => (
             <div
@@ -75,7 +78,8 @@ function CalendarCell({
               }}
               onClick={() => console.log("GO TO EVENT PAGE")}
             >
-              {event.title} - {format(new Date(event.dateUtc), "hh:mm aaa")}
+              {event.title} -{" "}
+              {format(new Date(event.startDateUtc), "hh:mm aaa")}
             </div>
           ))}
       </div>
@@ -94,7 +98,10 @@ function CalendarCellRow({
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
       {dates.map((date, i) => {
         const eventsForDate = events.filter((event) => {
-          return isEqual(startOfDay(new Date(event.dateUtc)), startOfDay(date));
+          return isEqual(
+            startOfDay(new Date(event.startDateUtc)),
+            startOfDay(date)
+          );
         });
         return (
           <div style={{ flex: "1 1 0" }}>
@@ -123,16 +130,62 @@ function CalendarCellMatrix({
 }
 
 function AddEventForm() {
-  const [title, setTitle] = useState<string>();
-  const [description, setDescription] = useState<string>();
-  const [date, setDate] = useState<string>();
-  const [time, setTime] = useState<string>();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringRate, setRecurringRate] = useState("DAILY");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
   function resetInputs() {
     setTitle("");
     setDescription("");
     setDate("");
     setTime("");
+    setIsRecurring(false);
+    setRecurringRate("DAILY");
+  }
+
+  function getEndDate(
+    startDate: Date,
+    duration: number,
+    isRecurring: boolean,
+    recurrenceEndDate: Date | undefined
+  ) {
+    if (isRecurring) {
+      console.log(recurrenceEndDate);
+      return recurrenceEndDate ?? new Date(Date.UTC(2999, 12, 31));
+    }
+    return addMinutes(startDate, duration);
+  }
+
+  function generateRecurrencePattern(
+    recurringRate: string,
+    startDateUtc: string,
+    endDateUtc: string
+  ) {
+    const freq =
+      recurringRate === "DAILY"
+        ? RRule.DAILY
+        : recurringRate === "WEEKLY"
+        ? RRule.WEEKLY
+        : recurringRate === "MONTHLY"
+        ? RRule.MONTHLY
+        : recurringRate === "ANNUALLY"
+        ? RRule.YEARLY
+        : undefined;
+
+    if (!freq) return;
+
+    const rule = new RRule({
+      freq,
+      interval: 1,
+      dtstart: new Date(startDateUtc),
+      until: new Date(endDateUtc),
+    });
+
+    return rule.toString();
   }
 
   return (
@@ -157,21 +210,80 @@ function AddEventForm() {
         value={time}
         onChange={(e) => setTime(e.target.value)}
       />
+      <label>Is recurring?</label>
+      <input
+        type="checkbox"
+        checked={isRecurring}
+        onChange={(e) => setIsRecurring(e.target.checked)}
+      />
+      {isRecurring ? (
+        <>
+          <label>Recurring:</label>
+          <select
+            value={recurringRate}
+            onChange={(e) => setRecurringRate(e.target.value)}
+          >
+            <option value={"DAILY"}>Daily</option>
+            <option value={"WEEKLY"}>Weekly</option>
+            <option value={"MONTHLY"}>Monthly</option>
+            <option value={"ANNUALLY"}>Annually</option>
+          </select>
+          <label>Ending:</label>
+          <input
+            type="date"
+            value={recurrenceEndDate}
+            onChange={(e) => setRecurrenceEndDate(e.target.value)}
+          />
+        </>
+      ) : (
+        <></>
+      )}
       <button
         onClick={async () => {
           if (!date || !time) {
             console.error("NO DATE!");
             return;
           }
+          const duration = 30;
           const [year, month, day] = date.split("-").map((n) => Number(n));
           const [hours, minutes] = time.split(":").map((n) => Number(n));
-          const dateObj = new Date(year, month - 1, day, hours, minutes);
-          const dateString = dateObj.toISOString();
+          const startDateObj = new Date(year, month - 1, day, hours, minutes);
+          const recurrenceEndDateObj = recurrenceEndDate
+            ? (() => {
+                const [rYear, rMonth, rDay] = recurrenceEndDate
+                  .split("-")
+                  .map((n) => Number(n));
+                return addMinutes(
+                  new Date(rYear, rMonth, rDay, hours, minutes),
+                  duration
+                );
+              })()
+            : undefined;
+          const endDateObj = getEndDate(
+            startDateObj,
+            duration,
+            isRecurring,
+            recurrenceEndDateObj
+          );
+          const startDateString = startDateObj.toISOString();
+          const endDateString = endDateObj.toISOString();
+
+          const recurrencePattern = isRecurring
+            ? generateRecurrencePattern(
+                recurringRate,
+                startDateString,
+                endDateString
+              )
+            : undefined;
+
           await agent.runAction("setEvent", {
             title,
             description,
-            dateUtc: dateString,
-            duration: 30,
+            startDateUtc: startDateString,
+            endDateUtc: endDateString,
+            duration,
+            isRecurring,
+            recurrencePattern,
           });
           resetInputs();
         }}
