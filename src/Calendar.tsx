@@ -253,7 +253,7 @@ function AddEventForm() {
                   .split("-")
                   .map((n) => Number(n));
                 return addMinutes(
-                  new Date(rYear, rMonth, rDay, hours, minutes),
+                  new Date(rYear, rMonth - 1, rDay, hours, minutes),
                   duration
                 );
               })()
