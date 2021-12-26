@@ -18,7 +18,7 @@ interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  date: string;
+  dateUtc: string;
   duration: number; // minutes
   // allDay: boolean,
   // participants: User[]
@@ -61,7 +61,7 @@ function CalendarCell({
       <div>
         {events
           .sort((a, b) =>
-            isAfter(new Date(a.date), new Date(b.date)) ? 1 : -1
+            isAfter(new Date(a.dateUtc), new Date(b.dateUtc)) ? 1 : -1
           )
           .map((event, i) => (
             <div
@@ -75,7 +75,7 @@ function CalendarCell({
               }}
               onClick={() => console.log("GO TO EVENT PAGE")}
             >
-              {event.title} - {format(new Date(event.date), "hh:mm aaa")}
+              {event.title} - {format(new Date(event.dateUtc), "hh:mm aaa")}
             </div>
           ))}
       </div>
@@ -94,14 +94,8 @@ function CalendarCellRow({
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
       {dates.map((date, i) => {
         const eventsForDate = events.filter((event) => {
-          // console.log(
-          //   startOfDay(new Date(event.date)),
-          //   startOfDay(date),
-          //   isEqual(startOfDay(new Date(event.date)), startOfDay(date))
-          // );
-          return isEqual(startOfDay(new Date(event.date)), startOfDay(date));
+          return isEqual(startOfDay(new Date(event.dateUtc)), startOfDay(date));
         });
-        // console.log(date, events, eventsForDate);
         return (
           <div style={{ flex: "1 1 0" }}>
             <CalendarCell date={date} key={i} events={eventsForDate} />
@@ -134,8 +128,15 @@ function AddEventForm() {
   const [date, setDate] = useState<string>();
   const [time, setTime] = useState<string>();
 
+  function resetInputs() {
+    setTitle("");
+    setDescription("");
+    setDate("");
+    setTime("");
+  }
+
   return (
-    <div>
+    <div style={{ margin: "15px 75px" }}>
       <input
         placeholder="title"
         value={title}
@@ -158,14 +159,21 @@ function AddEventForm() {
       />
       <button
         onClick={async () => {
-          console.log(date, time);
-          const dateString = `${date}T${time}:00-05:00`;
+          if (!date || !time) {
+            console.error("NO DATE!");
+            return;
+          }
+          const [year, month, day] = date.split("-").map((n) => Number(n));
+          const [hours, minutes] = time.split(":").map((n) => Number(n));
+          const dateObj = new Date(year, month - 1, day, hours, minutes);
+          const dateString = dateObj.toISOString();
           await agent.runAction("setEvent", {
             title,
             description,
-            date: dateString,
+            dateUtc: dateString,
             duration: 30,
           });
+          resetInputs();
         }}
       >
         Add Event
