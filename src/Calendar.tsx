@@ -13,6 +13,7 @@ import {
   isAfter,
   addMinutes,
   addMonths,
+  getYear,
 } from "date-fns";
 import { useEffect, useState } from "react";
 import { RRule, RRuleSet, rrulestr } from "rrule";
@@ -73,14 +74,21 @@ function CalendarCell({
               style={{
                 margin: "2px 5px",
                 padding: "5px",
-                backgroundColor: "blue",
+                backgroundColor: "darkviolet",
                 color: "white",
                 borderRadius: "5px",
+                display: "flex",
               }}
               onClick={() => console.log("GO TO EVENT PAGE")}
             >
-              {event.title} -{" "}
-              {format(new Date(event.startDateUtc), "hh:mm aaa")}
+              <div
+                style={{
+                  flexGrow: 1,
+                }}
+              >
+                {event.title}
+              </div>
+              <div>{format(new Date(event.startDateUtc), "hh:mm aaa")}</div>
             </div>
           ))}
       </div>
@@ -122,7 +130,7 @@ function CalendarCellMatrix({
   events: CalendarEvent[];
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "800px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {dateMatrix.map((week, i) => (
         <CalendarCellRow dates={week} key={i} events={events} />
       ))}
@@ -296,10 +304,10 @@ function AddEventForm() {
 
 function MonthView({
   date,
-  onMonthChange,
+  onDateChange,
 }: {
   date: Date;
-  onMonthChange: (difference: number) => void;
+  onDateChange: (date: Date) => void;
 }) {
   const monthStart = startOfMonth(date);
   const start = startOfWeek(monthStart);
@@ -325,14 +333,24 @@ function MonthView({
     refreshEvents(date);
   }, [date]);
   return (
-    <>
-      <div style={{ display: "flex", justifyContent: "center", gap: "5px" }}>
-        <button onClick={() => onMonthChange(-1)}>&lt;</button>
-        <div style={{ textAlign: "center" }}>{MONTHS[getMonth(date)]}</div>
-        <button onClick={() => onMonthChange(1)}>&gt;</button>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ fontSize: "2em", fontWeight: "bold" }}>
+          {MONTHS[getMonth(date)]} {getYear(date)}
+        </div>
+        <div>
+          <button onClick={() => onDateChange(addMonths(date, -1))}>
+            &lt;
+          </button>
+          <button onClick={() => onDateChange(new Date())}>Today</button>
+          <button onClick={() => onDateChange(addMonths(date, 1))}>&gt;</button>
+        </div>
       </div>
-      <CalendarCellMatrix dateMatrix={dateMatrix} events={events} />
-    </>
+      <div style={{ flexGrow: 1 }}>
+        <CalendarCellMatrix dateMatrix={dateMatrix} events={events} />
+      </div>
+      <AddEventForm />
+    </div>
   );
 }
 
@@ -340,27 +358,33 @@ export default function Calendar() {
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState<string>("MONTH");
   return (
-    <>
+    <div
+      style={{
+        height: "100vh",
+        width: "100vw",
+        display: "flex",
+        flexDirection: "column",
+        padding: "15px",
+        boxSizing: "border-box",
+        backgroundColor: "floralwhite",
+      }}
+    >
       <select value={view} onChange={(e) => setView(e.target.value)}>
         <option value={"MONTH"}>Month</option>
         <option value={"WEEK"}>Week</option>
         <option value={"DAY"}>Day</option>
       </select>
-      {view === "MONTH" ? (
-        <MonthView
-          date={date}
-          onMonthChange={(difference) =>
-            setDate((d) => addMonths(d, difference))
-          }
-        />
-      ) : view === "Week" ? (
-        <></>
-      ) : view === "DAY" ? (
-        <></>
-      ) : (
-        <></>
-      )}
-      <AddEventForm />
-    </>
+      <div style={{ flexGrow: 1 }}>
+        {view === "MONTH" ? (
+          <MonthView date={date} onDateChange={(d) => setDate(d)} />
+        ) : view === "Week" ? (
+          <></>
+        ) : view === "DAY" ? (
+          <></>
+        ) : (
+          <></>
+        )}
+      </div>
+    </div>
   );
 }
