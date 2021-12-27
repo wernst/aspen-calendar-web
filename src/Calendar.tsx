@@ -377,7 +377,7 @@ export default function Calendar() {
       <div style={{ flexGrow: 1 }}>
         {view === "MONTH" ? (
           <MonthView date={date} onDateChange={(d) => setDate(d)} />
-        ) : view === "Week" ? (
+        ) : view === "WEEK" ? (
           <></>
         ) : view === "DAY" ? (
           <></>
