@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@aspen.cloud/client": "^0.1.9",
+    "@popperjs/core": "^2.11.0",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
@@ -14,6 +15,10 @@
     "date-fns": "^2.27.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "react-feather": "^2.0.9",
+    "react-hook-form": "^7.22.5",
+    "react-popper": "^2.2.5",
+    "react-router-dom": "6",
     "react-scripts": "5.0.0",
     "rrule": "^2.6.8",
     "typescript": "^4.5.4",

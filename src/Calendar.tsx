@@ -14,20 +14,14 @@ import {
   addMinutes,
   addMonths,
   getYear,
+  eachDayOfInterval,
 } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RRule, RRuleSet, rrulestr } from "rrule";
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string;
-  startDateUtc: string;
-  endDateUtc: string;
-  duration: number; // minutes
-  // allDay: boolean,
-  // participants: User[]
-}
+import { usePopper } from "react-popper";
+import { CalendarEvent } from "./types";
+import { useNavigate } from "react-router-dom";
+import { Edit, X } from "react-feather";
 
 // TODO: need some kind of check that an agent is declared as a dependendcy (or show error in UI somewhere)
 const agent = new AgentClient("@will/calendar-agent");
@@ -46,6 +40,117 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+function EventDetail({
+  event,
+  onClose,
+}: {
+  event: CalendarEvent;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div
+      style={{
+        backgroundColor: "white",
+        borderRadius: "5px",
+        boxShadow:
+          "0px 24px 38px 3px rgba(0,0,0,0.14),0px 9px 46px 8px rgba(0,0,0,0.12),0px 11px 15px -7px rgba(0,0,0,0.2)",
+        padding: "5px",
+      }}
+    >
+      <div style={{ float: "right" }}>
+        <button onClick={() => navigate(`/edit/${event.id}`)}>
+          <Edit />
+        </button>
+        <button onClick={() => onClose()}>
+          <X />
+        </button>
+      </div>
+
+      <h3>{event.title}</h3>
+      <p>{event.description}</p>
+      <p>
+        {format(new Date(event.startDateUtc), "eee, MMM dd h:mm aaa")} for{" "}
+        {event.duration} minutes
+      </p>
+    </div>
+  );
+}
+
+function MonthCalendarEvent({ event }: { event: CalendarEvent }) {
+  const eventDetailRef = useRef(null);
+
+  const [referenceElement, setReferenceElement] = useState<HTMLElement | null>(
+    null
+  );
+  const [popperElement, setPopperElement] = useState<HTMLElement | null>(null);
+  const [arrowElement, setArrowElement] = useState<HTMLElement | null>(null);
+  const { styles, attributes, update, forceUpdate, state } = usePopper(
+    referenceElement,
+    popperElement,
+    {
+      modifiers: [
+        {
+          name: "offset",
+          options: {
+            offset: [0, 10],
+          },
+        },
+      ],
+      placement: "right",
+    }
+  );
+  //@ts-ignore
+  console.log(eventDetailRef.current?.getBoundingClientRect());
+  // console.log(x, y, reference, floating, strategy);
+  const [isEventDetailVisible, setIsEventDetailVisible] = useState(false);
+  return (
+    <>
+      <div
+        style={{
+          margin: "2px 5px",
+          padding: "5px",
+          backgroundColor: "darkviolet",
+          color: "white",
+          borderRadius: "5px",
+          display: "flex",
+          fontSize: "0.75em",
+        }}
+        ref={setReferenceElement}
+        onClick={() => setIsEventDetailVisible((v) => !v)}
+      >
+        <div
+          style={{
+            flexGrow: 1,
+          }}
+        >
+          {event.title}
+        </div>
+        <div>{format(new Date(event.startDateUtc), "hh:mm aaa")}</div>
+      </div>
+      {isEventDetailVisible && (
+        <div
+          ref={setPopperElement}
+          style={{
+            ...styles.popper,
+            // display:  ? "initial" : "none",
+          }}
+          {...attributes.popper}
+        >
+          <div ref={eventDetailRef}>
+            <EventDetail
+              event={event}
+              onClose={() => setIsEventDetailVisible(false)}
+            />
+          </div>
+
+          <div ref={setArrowElement} style={styles.arrow} />
+        </div>
+      )}
+    </>
+  );
+}
 
 function CalendarCell({
   date,
@@ -68,28 +173,8 @@ function CalendarCell({
           .sort((a, b) =>
             isAfter(new Date(a.startDateUtc), new Date(b.startDateUtc)) ? 1 : -1
           )
-          .map((event, i) => (
-            <div
-              key={i}
-              style={{
-                margin: "2px 5px",
-                padding: "5px",
-                backgroundColor: "darkviolet",
-                color: "white",
-                borderRadius: "5px",
-                display: "flex",
-              }}
-              onClick={() => console.log("GO TO EVENT PAGE")}
-            >
-              <div
-                style={{
-                  flexGrow: 1,
-                }}
-              >
-                {event.title}
-              </div>
-              <div>{format(new Date(event.startDateUtc), "hh:mm aaa")}</div>
-            </div>
+          .map((event) => (
+            <MonthCalendarEvent event={event} key={event.id} />
           ))}
       </div>
     </div>
@@ -311,14 +396,15 @@ function MonthView({
 }) {
   const monthStart = startOfMonth(date);
   const start = startOfWeek(monthStart);
-  const dateMatrix: Date[][] = [];
-  for (let i = 0; i < 5; i++) {
-    const week: Date[] = [];
-    for (let j = 0; j < 7; j++) {
-      week.push(addDays(start, i * 7 + j));
-    }
-    dateMatrix.push(week);
-  }
+  const monthEnd = endOfMonth(date);
+  const end = endOfWeek(monthEnd);
+
+  const dates = eachDayOfInterval({ start, end });
+  const dateMatrix = dates.reduce<Date[][]>((weeks, day, i) => {
+    i % 7 === 0 ? weeks.push([day]) : weeks[weeks.length - 1].push(day);
+    return weeks;
+  }, []);
+
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const refreshEvents = async (date: Date) => {
