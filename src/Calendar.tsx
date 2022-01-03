@@ -407,17 +407,26 @@ function MonthView({
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-  const refreshEvents = async (date: Date) => {
-    const resp = await agent.getView("eventsForMonth", {
-      year: date.getFullYear().toString(),
-      month: date.getMonth().toString(),
-    });
-    console.log(resp);
-    setEvents(resp);
-  };
   useEffect(() => {
-    refreshEvents(date);
+    const teardown = agent.subscribeToAggregation(
+      "events",
+      null,
+      async (events) => {
+        // this is kinda dumb but w/e
+        if (events) {
+          const resp = await agent.getView("eventsForMonth", {
+            year: date.getFullYear().toString(),
+            month: date.getMonth().toString(),
+          });
+          setEvents(resp);
+        } else console.error("NO EVENTS!");
+      }
+    );
+    return () => {
+      teardown();
+    };
   }, [date]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
