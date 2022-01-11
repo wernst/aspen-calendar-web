@@ -7,5 +7,6 @@
   "resourceResolution": "spa",
   "agentDependencies": {
     "@will/calendar-agent": "required"
-  }
+  },
+  "pathToIcon": "./Calendar.png"
 }
